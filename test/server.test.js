@@ -22,8 +22,11 @@ test('admin upload, public compatibility, persistence and path boundaries', asyn
   await credentials.init();
   const api = await listen(createApiHandler(library));
   const admin = await listen(createAdminHandler(library, { credentials }));
+  let restarted;
   t.after(async () => {
     await Promise.all([new Promise((resolve) => api.server.close(resolve)), new Promise((resolve) => admin.server.close(resolve))]);
+    restarted?.close();
+    library.close();
     await fs.rm(dataDir, { recursive: true, force: true });
   });
   async function get(route) {
@@ -35,6 +38,9 @@ test('admin upload, public compatibility, persistence and path boundaries', asyn
   assert.equal(adminPage.status, 200);
   assert.match(await adminPage.text(), /Kikoeta-LLS/);
   assert.equal((await fetch(admin.url + '/admin/app.js')).status, 200);
+  const logo = await fetch(admin.url + '/admin/logo.png');
+  assert.equal(logo.status, 200);
+  assert.match(logo.headers.get('content-type'), /^image\/png/);
   assert.equal((await fetch(admin.url + '/admin/api/works')).status, 401);
   assert.deepEqual((await get(base)).body, { version: 1, works: [] });
   assert.equal((await get(base + '/BAD/files')).body.error, 'work_not_found');
@@ -101,6 +107,12 @@ test('admin upload, public compatibility, persistence and path boundaries', asyn
   assert.equal((await adminRequest('files', 'POST', { ...upload, relativePath: 'track.mp3' })).status, 400);
   assert.equal((await adminRequest('files', 'POST', { ...upload, relativePath: '/outside.lrc' })).status, 400);
   assert.equal((await adminRequest('files', 'POST', upload)).status, 200);
+  const adminWorks = await adminRequest('works', 'GET');
+  assert.equal(adminWorks.body.workCount, 1);
+  assert.equal(adminWorks.body.fileCount, 1);
+  assert.deepEqual(adminWorks.body.works, [{ workId: 'RJ123', isAi: true, fileCount: 1 }]);
+  assert.equal(adminWorks.body.nextCursor, null);
+  assert.equal((await adminRequest('files?workId=RJ123', 'GET')).body.files[0].relativePath, 'disc1/track01.lrc');
   assert.deepEqual((await get(base)).body, { version: 1, works: [{ workId: 'RJ123', isAi: true, fileCount: 1 }] });
   const files = await get(base + '/rj123/files');
   assert.equal(files.status, 200);
@@ -109,9 +121,11 @@ test('admin upload, public compatibility, persistence and path boundaries', asyn
   assert.deepEqual(files.body, { workId: 'RJ123', files: [{ relativePath: 'disc1/track01.lrc', name: 'track01.lrc', extension: '.lrc', isAi: true }] });
   const lyrics = await get(base + '/RJ123/lyrics');
   assert.deepEqual(lyrics.body, { workId: 'RJ123', files: [{ ...files.body.files[0], content: bytes.toString('base64') }] });
-  assert.deepEqual(await fs.readFile(path.join(dataDir, 'works', 'RJ123', 'disc1', 'track01.lrc')), bytes);
+  assert.equal((await fs.stat(path.join(dataDir, 'library.sqlite'))).isFile(), true);
+  assert.equal(await fs.access(path.join(dataDir, 'works', 'RJ123')).then(() => true, () => false), false);
 
-  const restarted = new Library(dataDir);
+  restarted = new Library(dataDir);
+  await restarted.init();
   assert.equal((await restarted.works())[0].isAi, true);
   assert.equal((await adminRequest('files/ai', 'PATCH', { workId: 'RJ123', relativePath: 'disc1/track01.lrc', isAi: false })).status, 200);
   assert.equal((await get(base)).body.works[0].isAi, false);

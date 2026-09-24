@@ -5,12 +5,35 @@ const libraryPanel = document.getElementById('library-panel');
 const logoutButton = document.getElementById('logout');
 const changePasswordButton = document.getElementById('change-password');
 const cancelPasswordButton = document.getElementById('cancel-password');
+const themeToggle = document.getElementById('theme-toggle');
+const searchInput = document.getElementById('work-search');
 const worksElement = document.getElementById('works');
 let csrf = '';
 let passwordRequired = false;
+let cachedWorks = [];
+let nextCursor = null;
+let listVersion = 0;
+let searchTimer;
+
+let savedTheme;
+try { savedTheme = localStorage.getItem('lls-theme'); } catch { /* Private browsing may block storage. */ }
+const initialTheme = savedTheme === 'light' || savedTheme === 'dark'
+  ? savedTheme : (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+function setTheme(theme) {
+  document.documentElement.dataset.theme = theme;
+  themeToggle.textContent = theme === 'dark' ? '☀' : '☾';
+  themeToggle.setAttribute('aria-label', theme === 'dark' ? '切换到浅色主题' : '切换到深色主题');
+}
+setTheme(initialTheme);
+themeToggle.addEventListener('click', () => {
+  const theme = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+  setTheme(theme);
+  try { localStorage.setItem('lls-theme', theme); } catch { /* Theme remains active for this page. */ }
+});
 
 function notice(value) { message.textContent = value; }
 function showView(view) {
+  document.body.dataset.view = view;
   loginPanel.hidden = view !== 'login';
   passwordPanel.hidden = view !== 'password';
   libraryPanel.hidden = view !== 'library';
@@ -37,54 +60,140 @@ async function request(route, method = 'GET', data) {
   return result;
 }
 
-async function refresh() {
-  const { works } = await request('works');
-  worksElement.replaceChildren();
-  if (!works.length) {
-    const empty = document.createElement('p');
-    empty.className = 'muted';
-    empty.textContent = '暂无歌词。上传文件后，作品会出现在这里。';
+function renderWorks(appendFrom = 0) {
+  const openIds = appendFrom ? new Set() : new Set([...worksElement.querySelectorAll('details[open]')].map((item) => item.dataset.workId));
+  const query = searchInput.value.trim();
+  const works = cachedWorks.slice(appendFrom);
+  document.getElementById('visible-count').textContent = `已显示 ${cachedWorks.length} 部作品`;
+  document.getElementById('load-more').hidden = !nextCursor;
+  if (!appendFrom) worksElement.replaceChildren();
+  if (!cachedWorks.length) {
+    const empty = document.createElement('div');
+    empty.className = 'empty-state';
+    const icon = document.createElement('span');
+    icon.className = 'empty-icon';
+    icon.textContent = query ? '⌕' : '♫';
+    const title = document.createElement('strong');
+    title.textContent = query ? '没有找到匹配的作品' : '还没有歌词作品';
+    const hint = document.createElement('p');
+    hint.textContent = query ? '试试其他作品号或文件名。' : '上传歌词后，作品会出现在这里。';
+    empty.append(icon, title, hint);
     worksElement.append(empty);
     return;
   }
   for (const work of works) {
-    const section = document.createElement('section');
+    const section = document.createElement('details');
     section.className = 'work';
-    const title = document.createElement('h3');
-    title.textContent = `${work.workId} · ${work.fileCount} 个文件${work.isAi ? ' · 含 AI 歌词' : ''}`;
-    section.append(title);
-    for (const file of work.files) {
-      const row = document.createElement('div');
-      row.className = 'file';
-      const name = document.createElement('span');
-      name.textContent = file.relativePath;
-      const actions = document.createElement('div');
-      actions.className = 'file-actions';
-      const aiLabel = document.createElement('label');
-      aiLabel.className = 'check';
-      const ai = document.createElement('input');
-      ai.type = 'checkbox';
-      ai.checked = file.isAi;
-      ai.addEventListener('change', async () => {
-        try { await request('files/ai', 'PATCH', { workId: work.workId, relativePath: file.relativePath, isAi: ai.checked }); notice('AI 标记已保存'); }
-        catch (error) { ai.checked = !ai.checked; notice(`保存失败：${error.message}`); }
-      });
-      aiLabel.append(ai, ' AI');
-      const remove = document.createElement('button');
-      remove.className = 'danger small';
-      remove.textContent = '删除';
-      remove.addEventListener('click', async () => {
-        if (!confirm(`删除 ${work.workId}/${file.relativePath}？`)) return;
-        try { await request('files', 'DELETE', { workId: work.workId, relativePath: file.relativePath }); notice('已删除'); await refresh(); }
-        catch (error) { notice(`删除失败：${error.message}`); }
-      });
-      actions.append(aiLabel, remove);
-      row.append(name, actions);
-      section.append(row);
+    section.dataset.workId = work.workId;
+    const summary = document.createElement('summary');
+    summary.className = 'work-summary';
+    const art = document.createElement('span');
+    art.className = 'work-art';
+    art.textContent = '♫';
+    art.setAttribute('aria-hidden', 'true');
+    const name = document.createElement('span');
+    name.className = 'work-name';
+    const id = document.createElement('strong');
+    id.textContent = work.workId;
+    const count = document.createElement('small');
+    count.textContent = `${work.fileCount} 个歌词文件`;
+    name.append(id, count);
+    summary.append(art, name);
+    if (work.isAi) {
+      const badge = document.createElement('span');
+      badge.className = 'ai-pill';
+      badge.textContent = 'AI 歌词';
+      summary.append(badge);
     }
+    const chevron = document.createElement('span');
+    chevron.className = 'chevron';
+    chevron.textContent = '›';
+    chevron.setAttribute('aria-hidden', 'true');
+    summary.append(chevron);
+    section.append(summary);
+    section.addEventListener('toggle', async () => {
+      if (!section.open || section.dataset.loaded) return;
+      section.dataset.loaded = 'loading';
+      const fileList = document.createElement('div');
+      fileList.className = 'file-list';
+      let files;
+      try { ({ files } = await request(`files?workId=${encodeURIComponent(work.workId)}`)); }
+      catch (error) { section.dataset.loaded = ''; notice(`读取文件失败：${error.message}`); return; }
+      section.dataset.loaded = 'true';
+      for (const file of files) {
+        const row = document.createElement('div');
+        row.className = 'file';
+        const fileName = document.createElement('span');
+        fileName.className = 'file-name';
+        const extension = document.createElement('span');
+        extension.className = 'extension';
+        extension.textContent = file.extension.slice(1);
+        const pathText = document.createElement('span');
+        pathText.textContent = file.relativePath;
+        fileName.append(extension, pathText);
+        const actions = document.createElement('div');
+        actions.className = 'file-actions';
+        const aiLabel = document.createElement('label');
+        aiLabel.className = 'check';
+        const ai = document.createElement('input');
+        ai.type = 'checkbox';
+        ai.checked = file.isAi;
+        ai.addEventListener('change', async () => {
+          try { await request('files/ai', 'PATCH', { workId: work.workId, relativePath: file.relativePath, isAi: ai.checked }); notice('AI 标记已保存'); await refresh(); }
+          catch (error) { ai.checked = !ai.checked; notice(`保存失败：${error.message}`); }
+        });
+        aiLabel.append(ai, ' AI');
+        const remove = document.createElement('button');
+        remove.type = 'button';
+        remove.className = 'danger-button';
+        remove.textContent = '删除';
+        remove.addEventListener('click', async () => {
+          if (!confirm(`删除 ${work.workId}/${file.relativePath}？`)) return;
+          try { await request('files', 'DELETE', { workId: work.workId, relativePath: file.relativePath }); notice('已删除'); await refresh(); }
+          catch (error) { notice(`删除失败：${error.message}`); }
+        });
+        actions.append(aiLabel, remove);
+        row.append(fileName, actions);
+        fileList.append(row);
+      }
+      section.append(fileList);
+    });
     worksElement.append(section);
+    if (openIds.has(work.workId)) section.open = true;
   }
 }
+
+async function refresh() {
+  const version = ++listVersion;
+  const result = await request(`works?q=${encodeURIComponent(searchInput.value.trim())}`);
+  if (version !== listVersion) return;
+  cachedWorks = result.works;
+  nextCursor = result.nextCursor;
+  document.getElementById('work-count').textContent = String(result.workCount);
+  document.getElementById('file-count').textContent = String(result.fileCount);
+  renderWorks();
+}
+
+searchInput.addEventListener('input', () => {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => refresh().catch((error) => notice(`搜索失败：${error.message}`)), 250);
+});
+document.getElementById('load-more').addEventListener('click', async (event) => {
+  const cursor = nextCursor;
+  if (!cursor) return;
+  const button = event.currentTarget;
+  const version = listVersion;
+  button.disabled = true;
+  try {
+    const result = await request(`works?q=${encodeURIComponent(searchInput.value.trim())}&after=${encodeURIComponent(cursor)}`);
+    if (version !== listVersion) return;
+    const appendFrom = cachedWorks.length;
+    cachedWorks.push(...result.works);
+    nextCursor = result.nextCursor;
+    renderWorks(appendFrom);
+  } catch (error) { notice(`加载失败：${error.message}`); }
+  finally { button.disabled = false; }
+});
 
 document.getElementById('login-form').addEventListener('submit', async (event) => {
   event.preventDefault();
@@ -161,10 +270,40 @@ document.getElementById('upload-form').addEventListener('submit', async (event) 
   finally { button.disabled = false; }
 });
 
+document.getElementById('zip-form').addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const button = form.querySelector('button');
+  const files = [...form.elements.archive.files];
+  button.disabled = true;
+  let imported = 0, overwritten = 0, skipped = 0, ignored = 0;
+  const workIds = new Set();
+  try {
+    for (const [index, file] of files.entries()) {
+      if (!/\.zip$/i.test(file.name) || !file.size || file.size > 128 * 1024 * 1024) throw new Error(`${file.name} 不是有效的 ZIP 文件或超过 128 MiB`);
+      notice(`正在导入 ${index + 1}/${files.length}：${file.name}`);
+      const query = new URLSearchParams({ name: file.name, conflict: form.elements.conflict.value, ai: String(form.elements.isAi.checked) });
+      const response = await fetch(`/admin/api/import/zip?${query}`, {
+        method: 'POST', headers: { 'Content-Type': 'application/zip', 'X-LLS-CSRF': csrf }, body: file,
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(`${file.name}：${result.error || `HTTP ${response.status}`}`);
+      imported += result.imported; overwritten += result.overwritten; skipped += result.skipped; ignored += result.ignored;
+      for (const id of result.workIds) workIds.add(id);
+    }
+    form.reset();
+    notice(`导入完成：${workIds.size} 部作品，新增 ${imported} 个、覆盖 ${overwritten} 个、跳过 ${skipped} 个歌词文件；忽略 ${ignored} 个其他条目。`);
+    await refresh();
+  } catch (error) { notice(`导入中断：${error.message}`); await refresh(); }
+  finally { button.disabled = false; }
+});
+
 logoutButton.addEventListener('click', async () => {
   try { await request('logout', 'POST'); } catch (error) { notice(error.message); }
   csrf = '';
   passwordRequired = false;
+  cachedWorks = [];
+  searchInput.value = '';
   worksElement.replaceChildren();
   showView('login');
 });

@@ -4,6 +4,7 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 const { Library, workId, relativePath, MAX_FILE_BYTES } = require('./library');
 const { Credentials, equalStrings } = require('./credentials');
+const { importZip, MAX_UPLOAD_BYTES } = require('./zip-import');
 
 const API_PREFIX = '/api/lyrics-library/v1/works';
 const PUBLIC_DIR = path.join(__dirname, '..', 'public');
@@ -95,13 +96,14 @@ function createAdminHandler(library, options = {}) {
         '/admin': ['index.html', 'text/html; charset=utf-8'],
         '/admin/app.js': ['app.js', 'text/javascript; charset=utf-8'],
         '/admin/style.css': ['style.css', 'text/css; charset=utf-8'],
+        '/admin/logo.png': ['logo.png', 'image/png'],
       };
       if (request.method === 'GET' && staticFiles[route]) {
         const [filename, type] = staticFiles[route];
         const content = await fs.readFile(path.join(PUBLIC_DIR, filename));
         response.writeHead(200, {
           'Content-Type': type, 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff',
-          'Content-Security-Policy': "default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'",
+          'Content-Security-Policy': "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'",
         });
         return response.end(content);
       }
@@ -145,10 +147,13 @@ function createAdminHandler(library, options = {}) {
       }
       if (credentials.mustChangePassword) return json(response, 403, { error: 'password_change_required' });
       if (route === '/admin/api/works' && request.method === 'GET') {
-        const works = await library.works();
-        const output = [];
-        for (const work of works) output.push({ ...work, files: await library.files(work.workId) });
-        return json(response, 200, { works: output });
+        const params = new URL(request.url, 'http://localhost').searchParams;
+        return json(response, 200, await library.workPage({ after: params.get('after') || '', query: params.get('q') || '', limit: 50 }));
+      }
+      if (route === '/admin/api/files' && request.method === 'GET') {
+        const id = workId(new URL(request.url, 'http://localhost').searchParams.get('workId'));
+        if (!id) return json(response, 400, { error: 'invalid_file' });
+        return json(response, 200, { workId: id, files: await library.files(id) || [] });
       }
       if (route === '/admin/api/files' && request.method === 'POST') {
         const data = await bodyJson(request, Math.ceil(MAX_FILE_BYTES * 4 / 3) + 4096);
@@ -159,6 +164,32 @@ function createAdminHandler(library, options = {}) {
         if (!bytes.length || bytes.length > MAX_FILE_BYTES) return json(response, 400, { error: 'invalid_file' });
         await library.save(id, rel, bytes, data.isAi === true);
         return json(response, 200, { ok: true });
+      }
+      if (route === '/admin/api/import/zip' && request.method === 'POST') {
+        const url = new URL(request.url, 'http://localhost');
+        const name = url.searchParams.get('name');
+        const conflict = url.searchParams.get('conflict') || 'skip';
+        const ai = url.searchParams.get('ai') === 'true';
+        if (!name || name.length > 255 || !/\.zip$/i.test(name) || !['skip', 'overwrite'].includes(conflict) || !['true', 'false', null].includes(url.searchParams.get('ai'))) return json(response, 400, { error: 'invalid_file' });
+        if (!['application/zip', 'application/octet-stream', 'application/x-zip-compressed'].includes(String(request.headers['content-type']).split(';')[0])) return json(response, 400, { error: 'invalid_file' });
+        const tempDir = await fs.mkdtemp(path.join(library.dataDir, 'zip-import-'));
+        let result;
+        try {
+          const uploaded = path.join(tempDir, 'upload.zip');
+          const handle = await fs.open(uploaded, 'wx', 0o600);
+          let size = 0;
+          try {
+            for await (const chunk of request) {
+              size += chunk.length;
+              if (size > MAX_UPLOAD_BYTES) throw new Error('body_too_large');
+              let offset = 0;
+              while (offset < chunk.length) offset += (await handle.write(chunk, offset, chunk.length - offset)).bytesWritten;
+            }
+          } finally { await handle.close(); }
+          if (!size) throw new Error('invalid_zip');
+          result = await importZip(library, uploaded, name, { conflict, isAi: ai }, tempDir);
+        } finally { await fs.rm(tempDir, { recursive: true, force: true }); }
+        return json(response, 200, result);
       }
       if (route === '/admin/api/files' && request.method === 'DELETE') {
         const data = await bodyJson(request, 2048);
@@ -179,8 +210,8 @@ function createAdminHandler(library, options = {}) {
       return json(response, 404, { error: 'not_found' });
     } catch (error) {
       const code = error.message;
-      if (code === 'invalid_file' || code === 'invalid_path' || code === 'invalid_json' || code === 'invalid_new_password' || code === 'invalid_current_password') return json(response, 400, { error: code });
-      if (code === 'body_too_large') return json(response, 413, { error: code });
+      if (code === 'invalid_file' || code === 'invalid_path' || code === 'invalid_json' || code === 'invalid_new_password' || code === 'invalid_current_password' || code === 'invalid_zip' || code === 'invalid_query') return json(response, 400, { error: code });
+      if (code === 'body_too_large' || code === 'zip_limit_exceeded') return json(response, 413, { error: code });
       if (code === 'work_full') return json(response, 413, { error: code });
       if (code === 'not_found' || error.code === 'ENOENT') return json(response, 404, { error: 'not_found' });
       console.error('Admin request failed:', error);
@@ -211,10 +242,13 @@ async function start() {
     }
   } catch (error) {
     for (const server of servers) server.close();
+    library.close();
     throw error;
   }
   for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, () => {
-    for (const server of servers) server.close();
+    Promise.all(servers.map((server) => new Promise((resolve) => server.close(resolve))))
+      .then(() => library.close())
+      .catch((error) => { console.error('Shutdown failed:', error); process.exitCode = 1; });
   });
 }
 

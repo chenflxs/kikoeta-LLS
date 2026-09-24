@@ -4,9 +4,15 @@
   "private": true,
   "description": "Kikoeta remote lyrics library service",
   "license": "AGPL-3.0-only",
-  "engines": { "node": ">=22" },
+  "engines": {
+    "node": ">=24.15.0"
+  },
   "scripts": {
     "start": "node src/server.js",
     "test": "node --test"
+  },
+  "dependencies": {
+    "iconv-lite": "^0.7.3",
+    "yauzl": "^3.4.0"
   }
 }

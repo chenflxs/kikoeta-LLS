@@ -1,4 +1,51 @@
+# Dependencies and generated output
 node_modules/
-data/
-.env
+.npm-cache/
+.cache/
 coverage/
+.nyc_output/
+dist/
+build/
+test-results/
+playwright-report/
+
+# Runtime data and local configuration
+data/
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+*.sqlite-journal
+*.db
+*.db-wal
+*.db-shm
+*.db-journal
+.env
+.env.*
+!.env.example
+!.env.sample
+
+# Logs, profiles and temporary files
+*.log
+*.log.*
+*.pid
+*.pid.lock
+*.cpuprofile
+*.heapprofile
+*.heapsnapshot
+*.trace
+*.tmp
+*.temp
+*.bak
+/logs/
+/debug/
+/tmp/
+/temp/
+
+# Local editor and OS files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db

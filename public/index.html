@@ -3,49 +3,99 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Kikoeta-LLS</title>
+  <meta name="theme-color" content="#f2f5fb">
+  <title>歌词库 · Kikoeta-LLS</title>
+  <link rel="icon" href="/admin/logo.png">
   <link rel="stylesheet" href="/admin/style.css">
   <script defer src="/admin/app.js"></script>
 </head>
-<body>
-  <main>
-    <header><div><h1>Kikoeta-LLS</h1><p>远程歌词库管理 · <a href="https://github.com/chenflxs/kikoeta-LLS">获取源代码</a></p></div><div class="header-actions"><button id="change-password" hidden>修改密码</button><button id="logout" hidden>退出登录</button></div></header>
-    <p id="message" role="status" aria-live="polite"></p>
-    <section id="login-panel" class="card" hidden>
-      <h2>登录</h2>
-      <form id="login-form">
-        <label>账号<input name="user" autocomplete="username" required></label>
-        <label>密码<input name="password" type="password" autocomplete="current-password" required></label>
-        <button type="submit">登录</button>
-      </form>
-    </section>
-    <section id="password-panel" class="card" hidden>
-      <h2>设置管理密码</h2>
-      <p id="password-hint">首次登录只需设置一次新密码，完成后才能管理歌词。</p>
-      <form id="password-form">
-        <label id="current-password-label">当前密码<input name="currentPassword" type="password" autocomplete="current-password"></label>
-        <label>新密码（至少 6 位）<input name="newPassword" type="password" autocomplete="new-password" minlength="6" maxlength="128" required></label>
-        <label id="confirm-password-label">确认新密码<input name="confirmPassword" type="password" autocomplete="new-password" minlength="6" maxlength="128"></label>
-        <div class="form-actions"><button type="submit">保存新密码</button><button id="cancel-password" class="secondary" type="button" hidden>取消</button></div>
-      </form>
-    </section>
-    <div id="library-panel" hidden>
-      <section class="card">
-        <h2>上传歌词</h2>
-        <p>填写 RJ、VJ 或 BJ 作品号。可选择多个文件；单文件最大 8 MiB。</p>
-        <form id="upload-form">
-          <label>作品号<input name="workId" placeholder="RJ123456" required pattern="[RrVvBb][Jj][0-9]+"></label>
-          <label>目录前缀（可选）<input name="prefix" placeholder="disc1"></label>
-          <label>歌词文件<input name="files" type="file" accept=".lrc,.txt,.srt,.vtt,.ass,.ssa" multiple required></label>
-          <label class="check"><input name="isAi" type="checkbox"> 标记为 AI 歌词</label>
-          <button type="submit">上传</button>
-        </form>
-      </section>
-      <section class="card">
-        <div class="heading"><h2>作品</h2><button id="refresh" type="button">刷新</button></div>
-        <div id="works"></div>
-      </section>
+<body data-view="login">
+  <div class="app-shell">
+    <aside class="rail" aria-label="导航">
+      <a class="rail-brand" href="/admin" aria-label="Kikoeta-LLS 首页"><img src="/admin/logo.png" alt=""></a>
+      <div class="rail-current" aria-current="page"><span class="rail-icon" aria-hidden="true">♫</span><span>歌词库</span></div>
+      <a class="rail-source" href="https://github.com/chenflxs/kikoeta-LLS" title="获取源代码">源码</a>
+    </aside>
+
+    <div class="main-column">
+      <header class="topbar">
+        <div class="topbar-title"><span class="eyebrow">KIKOETA / LYRICS LIBRARY</span><h1>歌词库</h1></div>
+        <div class="header-actions">
+          <span class="service-pill"><span class="online-dot"></span>远程服务</span>
+          <button id="theme-toggle" class="icon-button" type="button" aria-label="切换主题" title="切换主题">☾</button>
+          <button id="change-password" class="quiet-button" type="button" hidden>修改密码</button>
+          <button id="logout" class="quiet-button" type="button" hidden>退出登录</button>
+        </div>
+      </header>
+
+      <main class="content">
+        <p id="message" class="message" role="status" aria-live="polite"></p>
+
+        <section id="login-panel" class="auth-panel" hidden>
+          <img class="auth-logo" src="/admin/logo.png" alt="">
+          <h2>Kikoeta-LLS</h2>
+          <p class="auth-description">登录远程歌词库管理端</p>
+          <form id="login-form">
+            <label>账号<input name="user" autocomplete="username" placeholder="管理员账号" required></label>
+            <label>密码<input name="password" type="password" autocomplete="current-password" placeholder="密码" required></label>
+            <button class="primary-button" type="submit">登录</button>
+          </form>
+          <p class="auth-footnote">Kikoeta 歌词库远程服务</p>
+        </section>
+
+        <section id="password-panel" class="auth-panel" hidden>
+          <img class="auth-logo" src="/admin/logo.png" alt="">
+          <h2>设置管理密码</h2>
+          <p id="password-hint" class="auth-description">首次登录只需设置一次新密码，完成后才能管理歌词。</p>
+          <form id="password-form">
+            <label id="current-password-label">当前密码<input name="currentPassword" type="password" autocomplete="current-password"></label>
+            <label>新密码（至少 6 位）<input name="newPassword" type="password" autocomplete="new-password" minlength="6" maxlength="128" placeholder="输入新密码" required></label>
+            <label id="confirm-password-label">确认新密码<input name="confirmPassword" type="password" autocomplete="new-password" minlength="6" maxlength="128"></label>
+            <button class="primary-button" type="submit">保存新密码</button>
+            <button id="cancel-password" class="quiet-button" type="button" hidden>返回歌词库</button>
+          </form>
+        </section>
+
+        <div id="library-panel" hidden>
+          <section class="overview">
+            <div><span class="eyebrow">LIBRARY SERVICE</span><h2>远程歌词库</h2><p>管理并广播本地歌词，供 Kikoeta 设备访问。</p></div>
+            <div class="overview-stats" aria-label="歌词库统计">
+              <div><strong id="work-count">0</strong><span>作品</span></div>
+              <div><strong id="file-count">0</strong><span>歌词文件</span></div>
+            </div>
+          </section>
+
+          <div class="library-layout">
+            <section class="surface upload-surface">
+              <div class="section-head"><span class="section-icon" aria-hidden="true">＋</span><div><h2>添加歌词</h2><p>上传文件到指定作品</p></div></div>
+              <form id="upload-form">
+                <label>作品号<input name="workId" placeholder="例如 RJ123456" required pattern="[RrVvBb][Jj][0-9]+" autocomplete="off"></label>
+                <label><span>子目录 <span class="optional">可选</span></span><input name="prefix" placeholder="例如 disc1" autocomplete="off"></label>
+                <label>选择歌词文件<input name="files" type="file" accept=".lrc,.txt,.srt,.vtt,.ass,.ssa" multiple required></label>
+                <p class="field-help">支持 LRC、TXT、SRT、VTT、ASS、SSA；单文件最大 8 MiB。</p>
+                <label class="check"><input name="isAi" type="checkbox"> 标记为 AI 歌词</label>
+                <button class="primary-button" type="submit">上传到歌词库</button>
+              </form>
+              <div class="import-divider"><span>批量导入 ZIP</span></div>
+              <form id="zip-form">
+                <label>选择压缩包<input name="archive" type="file" accept=".zip,application/zip" multiple required></label>
+                <p class="field-help">自动识别 RJ、VJ、BJ 作品目录及内嵌 ZIP；单包最大 128 MiB。</p>
+                <label>已有同名歌词<select name="conflict"><option value="skip">跳过已有文件</option><option value="overwrite">覆盖已有文件</option></select></label>
+                <label class="check"><input name="isAi" type="checkbox"> 导入的歌词标记为 AI</label>
+                <button class="primary-button" type="submit">批量导入</button>
+              </form>
+            </section>
+
+            <section class="surface works-surface">
+              <div class="section-head works-heading"><span class="section-icon" aria-hidden="true">♫</span><div><h2>作品列表</h2><p>查看歌词文件与 AI 标记</p></div><button id="refresh" class="quiet-button" type="button">刷新</button></div>
+              <div class="search-row"><label class="search-field"><span aria-hidden="true">⌕</span><input id="work-search" type="search" maxlength="128" placeholder="搜索作品号前缀或文件路径" aria-label="搜索作品号前缀或文件路径"></label><span id="visible-count" class="count-pill">0 部作品</span></div>
+              <div id="works" class="works-list"></div>
+              <button id="load-more" class="quiet-button load-more" type="button" hidden>加载更多</button>
+            </section>
+          </div>
+        </div>
+      </main>
     </div>
-  </main>
+  </div>
 </body>
 </html>
