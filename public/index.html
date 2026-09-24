@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Kikoeta-LLS</title>
+  <link rel="stylesheet" href="/admin/style.css">
+  <script defer src="/admin/app.js"></script>
+</head>
+<body>
+  <main>
+    <header><div><h1>Kikoeta-LLS</h1><p>远程歌词库管理 · <a href="https://github.com/chenflxs/kikoeta-LLS">获取源代码</a></p></div><div class="header-actions"><button id="change-password" hidden>修改密码</button><button id="logout" hidden>退出登录</button></div></header>
+    <p id="message" role="status" aria-live="polite"></p>
+    <section id="login-panel" class="card" hidden>
+      <h2>登录</h2>
+      <form id="login-form">
+        <label>账号<input name="user" autocomplete="username" required></label>
+        <label>密码<input name="password" type="password" autocomplete="current-password" required></label>
+        <button type="submit">登录</button>
+      </form>
+    </section>
+    <section id="password-panel" class="card" hidden>
+      <h2>设置管理密码</h2>
+      <p id="password-hint">首次登录只需设置一次新密码，完成后才能管理歌词。</p>
+      <form id="password-form">
+        <label id="current-password-label">当前密码<input name="currentPassword" type="password" autocomplete="current-password"></label>
+        <label>新密码（至少 6 位）<input name="newPassword" type="password" autocomplete="new-password" minlength="6" maxlength="128" required></label>
+        <label id="confirm-password-label">确认新密码<input name="confirmPassword" type="password" autocomplete="new-password" minlength="6" maxlength="128"></label>
+        <div class="form-actions"><button type="submit">保存新密码</button><button id="cancel-password" class="secondary" type="button" hidden>取消</button></div>
+      </form>
+    </section>
+    <div id="library-panel" hidden>
+      <section class="card">
+        <h2>上传歌词</h2>
+        <p>填写 RJ、VJ 或 BJ 作品号。可选择多个文件；单文件最大 8 MiB。</p>
+        <form id="upload-form">
+          <label>作品号<input name="workId" placeholder="RJ123456" required pattern="[RrVvBb][Jj][0-9]+"></label>
+          <label>目录前缀（可选）<input name="prefix" placeholder="disc1"></label>
+          <label>歌词文件<input name="files" type="file" accept=".lrc,.txt,.srt,.vtt,.ass,.ssa" multiple required></label>
+          <label class="check"><input name="isAi" type="checkbox"> 标记为 AI 歌词</label>
+          <button type="submit">上传</button>
+        </form>
+      </section>
+      <section class="card">
+        <div class="heading"><h2>作品</h2><button id="refresh" type="button">刷新</button></div>
+        <div id="works"></div>
+      </section>
+    </div>
+  </main>
+</body>
+</html>

@@ -1,0 +1,32 @@
+:root { color-scheme: light; font: 16px/1.5 system-ui, sans-serif; background: #f4f5f8; color: #243044; }
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; }
+main { max-width: 920px; margin: 0 auto; padding: 24px 16px 60px; }
+header, .heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+header h1 { margin: 0; font-size: 1.8rem; }
+header p { margin: 0; color: #667085; }
+.header-actions, .form-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+a { color: #3154b6; }
+.card { background: white; border: 1px solid #dce1e9; border-radius: 12px; padding: 22px; margin-top: 20px; box-shadow: 0 2px 12px #18304b0a; }
+h2 { margin: 0 0 12px; font-size: 1.25rem; }
+form { display: grid; gap: 14px; }
+label { display: grid; gap: 5px; font-weight: 600; }
+label.check { display: flex; align-items: center; font-weight: 400; }
+input:not([type="checkbox"]) { width: 100%; padding: 9px 11px; border: 1px solid #bac5d3; border-radius: 7px; font: inherit; }
+input[type="file"] { padding: 7px; }
+button { width: fit-content; padding: 8px 14px; border: 1px solid #4463bb; border-radius: 7px; background: #3154b6; color: white; font: inherit; cursor: pointer; }
+button:hover { background: #23439f; }
+button:disabled { opacity: .5; cursor: wait; }
+button.secondary { background: white; color: #3154b6; }
+button.danger { background: white; color: #a32727; border-color: #a32727; }
+button.small { padding: 4px 9px; font-size: .875rem; }
+#message { min-height: 1.5em; color: #8a4211; }
+.work { padding: 16px 0; border-top: 1px solid #e3e7ee; }
+.work:first-child { border-top: 0; }
+.work h3 { margin: 0 0 8px; }
+.file { display: flex; gap: 10px; align-items: center; justify-content: space-between; padding: 8px 0; flex-wrap: wrap; }
+.file span { overflow-wrap: anywhere; }
+.file-actions { display: flex; align-items: center; gap: 8px; }
+.muted { color: #667085; }
+@media (max-width: 550px) { .card { padding: 16px; } .file { align-items: flex-start; } }

@@ -1,0 +1,12 @@
+{
+  "name": "kikoeta-lyrics-library-service",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Kikoeta remote lyrics library service",
+  "license": "AGPL-3.0-only",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "start": "node src/server.js",
+    "test": "node --test"
+  }
+}
