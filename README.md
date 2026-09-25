@@ -133,6 +133,8 @@ Windows 单文件版的数据默认位于 EXE 同级的 `data` 文件夹；从�
 
 自定义端口、数据目录、HTTPS 配置和接口格式见 [配置与 API](<docs/配置与 API.md>)。
 
+维护者通过 GitHub Actions 手动构建并上传到 Docker Hub 的步骤见 [Docker 镜像发布](<docs/Docker 镜像发布.md>)。
+
 ## 相关项目
 
 - [Kikoeta](https://github.com/chenflxs/kikoeta)：连接远程库并导入歌词。
