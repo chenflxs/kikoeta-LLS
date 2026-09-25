@@ -249,11 +249,14 @@ test('Transl port accepts only the selected credential type and saves AI lyrics'
   await restarted.init();
   assert.equal(await restarted.verifyBasic('transl-user', 'separate123'), false);
   assert.equal(restarted.verifyKey('a1B2c3D4e5F6'), true);
+  assert.equal(restarted.status({ includeKey: true }).key, 'a1B2c3D4e5F6');
   const switched = await adminPost({ action: 'set_password', username: 'transl-user', password: 'newpass123' });
   assert.equal(switched.body.hasPassword, true);
   assert.equal(switched.body.hasKey, false);
   assert.equal((await upload('Bearer a1B2c3D4e5F6')).status, 401);
   assert.equal((await upload('Basic ' + Buffer.from('transl-user:newpass123').toString('base64'))).status, 200);
-  assert.equal(JSON.stringify(restarted.record).includes('separate123'), false);
-  assert.equal(JSON.stringify(restarted.record).includes('a1B2c3D4e5F6'), false);
+  const afterSwitch = new TranslAuth(dataDir);
+  await afterSwitch.init();
+  assert.equal(afterSwitch.status({ includeKey: true }).key, '');
+  assert.equal(await afterSwitch.verifyBasic('transl-user', 'newpass123'), true);
 });

@@ -357,11 +357,27 @@ async function start() {
     library.close();
     throw error;
   }
-  for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, () => {
+  let stopping = false;
+  const stop = () => {
+    if (stopping) return;
+    stopping = true;
     Promise.all(servers.map((server) => new Promise((resolve) => server.close(resolve))))
       .then(() => library.close())
       .catch((error) => { console.error('Shutdown failed:', error); process.exitCode = 1; });
-  });
+  };
+  for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, stop);
+  if (process.env.KIKOETA_TRAY_CONTROL === '1') {
+    process.stdin.setEncoding('utf8');
+    let input = '';
+    process.stdin.on('data', (chunk) => {
+      input += chunk;
+      if (input.length > 64) input = input.slice(-64);
+      if (/(?:^|\r?\n)quit\r?\n/.test(input)) {
+        process.stdin.destroy();
+        stop();
+      }
+    });
+  }
 }
 
 if (require.main === module) start().catch((error) => { console.error(error); process.exitCode = 1; });

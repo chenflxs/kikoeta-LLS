@@ -5,9 +5,19 @@ node_modules/
 coverage/
 .nyc_output/
 dist/
+releases/
 build/
 test-results/
 playwright-report/
+
+# Local build scripts; releases/ also contains the installer ISS.
+/build.py
+/start build.bat
+/packaging/
+
+# Portable Windows EXE placed outside dist/
+Kikoeta-LLS.exe
+runtime/
 
 # Runtime data and local configuration
 data/
