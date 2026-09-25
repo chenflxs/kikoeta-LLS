@@ -5,6 +5,7 @@ services:
     ports:
       - "2376:2376"
       - "2377:2377"
+      - "2378:2378"
     environment:
       ADMIN_USER: ${ADMIN_USER:-admin}
       COOKIE_SECURE: ${COOKIE_SECURE:-false}

@@ -131,6 +131,28 @@ class Library {
     }));
   }
 
+  async saveMany(id, files, isAi = true) {
+    id = workId(id);
+    if (!id || !Array.isArray(files) || !files.length || files.length > MAX_FILES_PER_WORK ||
+        files.some((file) => !relativePath(file.rel) || !Buffer.isBuffer(file.bytes) || !file.bytes.length || file.bytes.length > MAX_FILE_BYTES)) throw new Error('invalid_file');
+    return this.mutate(() => this.transaction(() => {
+      const work = this.getWork.get(id);
+      let count = work?.file_count || 0;
+      let total = work?.total_bytes || 0;
+      const sizes = new Map(work ? this.getWorkSizes.all(id).map((row) => [row.relative_path, row.size]) : []);
+      for (const file of files) {
+        const oldSize = sizes.get(file.rel);
+        if (oldSize === undefined) count++;
+        total += file.bytes.length - (oldSize || 0);
+        if (count > MAX_FILES_PER_WORK || total > MAX_WORK_BYTES) throw new Error('work_full');
+        sizes.set(file.rel, file.bytes.length);
+      }
+      this.insertWork.run(id);
+      for (const file of files) this.upsertFile.run(id, file.rel, file.bytes.length, isAi ? 1 : 0, file.bytes);
+      return { workId: id, saved: files.length };
+    }));
+  }
+
   async importBatch(staged, { conflict = 'skip', isAi = false } = {}) {
     if (!['skip', 'overwrite'].includes(conflict) || typeof isAi !== 'boolean') throw new Error('invalid_file');
     return this.mutate(async () => {

@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f2f5fb">
+  <title>设置 · Kikoeta-LLS</title>
+  <link rel="icon" href="/logo.png">
+  <link rel="stylesheet" href="/style.css">
+  <script defer src="/shared.js"></script>
+  <script defer src="/settings.js"></script>
+</head>
+<body data-view="settings">
+  <div class="app-shell">
+    <aside class="rail" aria-label="导航">
+      <a class="rail-brand" href="/library" aria-label="Kikoeta-LLS 首页"><img src="/logo.png" alt=""></a>
+      <a id="nav-library" class="rail-item" href="/library"><span class="rail-icon" aria-hidden="true">♫</span><span>歌词库</span></a>
+      <a id="nav-settings" class="rail-item rail-current" href="/settings" aria-current="page"><span class="rail-icon" aria-hidden="true">⚙</span><span>设置</span></a>
+      <a class="rail-source" href="https://github.com/chenflxs/kikoeta-LLS" target="_blank" rel="noopener noreferrer" title="获取源代码">源码</a>
+    </aside>
+    <div class="main-column">
+      <header class="topbar">
+        <div class="topbar-title"><span class="eyebrow">KIKOETA / LYRICS LIBRARY</span><h1>设置</h1></div>
+        <div class="header-actions">
+          <span class="service-pill"><span class="online-dot"></span>远程服务</span>
+          <button id="theme-toggle" class="icon-button" type="button" aria-label="切换主题" title="切换主题">☾</button>
+          <button id="logout" class="quiet-button" type="button">退出登录</button>
+        </div>
+      </header>
+      <main class="content">
+        <p id="message" class="message" role="status" aria-live="polite"></p>
+        <div id="settings-panel">
+          <section class="overview">
+            <div><span class="eyebrow">LIBRARY SETTINGS</span><h2>设置</h2><p>管理登录信息和本浏览器的使用偏好。</p></div>
+          </section>
+          <div class="settings-layout">
+            <section class="surface settings-card">
+              <div class="section-head"><span class="section-icon" aria-hidden="true">◎</span><div><h2>管理员账号</h2><p>修改管理页面的登录账号</p></div></div>
+              <p class="setting-current">当前账号：<strong id="current-user">admin</strong></p>
+              <form id="username-form">
+                <label>新账号<input name="newUser" autocomplete="username" minlength="3" maxlength="32" pattern="[A-Za-z0-9_.-]{3,32}" placeholder="3～32 位字母、数字、点、下划线或连字符" required></label>
+                <label>当前密码<input name="currentPassword" type="password" autocomplete="current-password" required></label>
+                <button class="primary-button" type="submit">保存账号</button>
+              </form>
+              <p class="setting-note">修改后其他设备需要重新登录。</p>
+            </section>
+            <section class="surface settings-card">
+              <div class="section-head"><span class="section-icon" aria-hidden="true">◇</span><div><h2>修改密码</h2><p>更新管理页面的登录密码</p></div></div>
+              <form id="settings-password-form">
+                <label>当前密码<input name="currentPassword" type="password" autocomplete="current-password" required></label>
+                <label>新密码（至少 6 位）<input name="newPassword" type="password" autocomplete="new-password" minlength="6" maxlength="128" required></label>
+                <label>确认新密码<input name="confirmPassword" type="password" autocomplete="new-password" minlength="6" maxlength="128" required></label>
+                <button class="primary-button" type="submit">保存新密码</button>
+              </form>
+              <p class="setting-note">修改后其他设备需要重新登录。</p>
+            </section>
+            <section class="surface settings-card">
+              <div class="section-head"><span class="section-icon" aria-hidden="true">☷</span><div><h2>使用偏好</h2><p>保存到当前浏览器</p></div></div>
+              <form id="preferences-form">
+                <label>页面主题<select name="theme"><option value="light">浅色</option><option value="dark">深色</option></select></label>
+                <label>ZIP 导入默认处理<select name="conflict"><option value="skip">跳过已有文件</option><option value="overwrite">覆盖已有文件</option></select></label>
+                <label class="check"><input name="isAi" type="checkbox"> ZIP 导入默认标记为 AI 歌词</label>
+                <button class="primary-button" type="submit">保存偏好</button>
+              </form>
+              <p class="setting-note">只影响当前浏览器；导入时仍可临时调整。</p>
+            </section>
+            <section class="surface settings-card transl-auth-card">
+              <div class="section-head"><span class="section-icon" aria-hidden="true">↗</span><div><h2>Kikoeta Transl 上传</h2><p>2378 端口的独立写入凭据</p></div></div>
+              <div class="transl-auth-switch" role="group" aria-label="上传验证方式">
+                <button id="transl-mode-password" type="button" aria-pressed="true">账号密码</button>
+                <button id="transl-mode-key" type="button" aria-pressed="false">密钥</button>
+              </div>
+              <p class="setting-current" id="transl-auth-status">正在读取授权状态…</p>
+              <p class="setting-note">只能启用一种验证方式。保存另一种方式时会停用当前方式；上传账号密码与管理页相互独立。</p>
+              <form id="transl-password-form" class="setting-subform">
+                <label>上传账号<input name="username" autocomplete="off" minlength="3" maxlength="32" pattern="[A-Za-z0-9_.-]{3,32}" required></label>
+                <label>上传密码（至少 6 位）<input name="password" type="password" autocomplete="new-password" minlength="6" maxlength="128" required></label>
+                <div class="setting-actions"><button class="primary-button" type="submit">保存上传账号密码</button><button id="transl-clear-password" class="quiet-button" type="button">停用账号密码</button></div>
+              </form>
+              <form id="transl-key-form" class="setting-subform" hidden>
+                <label>上传密钥<input name="key" type="password" autocomplete="new-password" minlength="12" maxlength="12" pattern="[A-Za-z0-9]{12}" placeholder="12 位数字或字母" required></label>
+                <button id="transl-show-key" class="quiet-button transl-show-key" type="button" aria-pressed="false">显示密钥</button>
+                <div class="setting-actions transl-key-actions"><button class="primary-button" type="submit">保存手动密钥</button><button id="transl-generate-key" class="quiet-button" type="button">随机生成</button><button id="transl-clear-key" class="quiet-button" type="button">停用密钥</button></div>
+              </form>
+            </section>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+</body>
+</html>

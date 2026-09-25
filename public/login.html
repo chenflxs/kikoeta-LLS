@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f2f5fb">
+  <title>登录 · Kikoeta-LLS</title>
+  <link rel="icon" href="/logo.png">
+  <link rel="stylesheet" href="/style.css">
+  <script defer src="/shared.js"></script>
+  <script defer src="/login.js"></script>
+</head>
+<body data-view="login">
+  <div class="app-shell">
+    <main class="content auth-content">
+      <p id="message" class="message" role="status" aria-live="polite"></p>
+      <section id="login-panel" class="auth-panel">
+        <img class="auth-logo" src="/logo.png" alt="">
+        <h2>Kikoeta-LLS</h2>
+        <p class="auth-description">登录远程歌词库管理端</p>
+        <form id="login-form">
+          <label>账号<input name="user" autocomplete="username" placeholder="管理员账号" required></label>
+          <label>密码<input name="password" type="password" autocomplete="current-password" placeholder="密码" required></label>
+          <button class="primary-button" type="submit">登录</button>
+        </form>
+        <p class="auth-footnote">Kikoeta 歌词库远程服务</p>
+      </section>
+      <section id="password-panel" class="auth-panel" hidden>
+        <img class="auth-logo" src="/logo.png" alt="">
+        <h2>设置管理密码</h2>
+        <p class="auth-description">首次登录只需设置一次新密码，完成后才能管理歌词。</p>
+        <form id="password-form">
+          <label>新密码（至少 6 位）<input name="newPassword" type="password" autocomplete="new-password" minlength="6" maxlength="128" placeholder="输入新密码" required></label>
+          <button class="primary-button" type="submit">保存新密码</button>
+        </form>
+      </section>
+    </main>
+  </div>
+</body>
+</html>

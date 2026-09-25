@@ -8,8 +8,8 @@ const iconv = require('iconv-lite');
 const { workId, relativePath, MAX_FILE_BYTES } = require('./library');
 
 const pipe = promisify(pipeline);
-const MAX_UPLOAD_BYTES = 128 * 1024 * 1024;
-const MAX_EXPANDED_BYTES = 512 * 1024 * 1024;
+const MAX_UPLOAD_BYTES = 512 * 1024 * 1024;
+const MAX_EXPANDED_BYTES = 2 * 1024 * 1024 * 1024;
 const MAX_ENTRIES = 100000;
 const MAX_DEPTH = 8;
 
