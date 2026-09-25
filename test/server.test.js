@@ -35,14 +35,24 @@ test('admin upload, public compatibility, persistence and path boundaries', asyn
     return { status: response.status, headers: response.headers, body: await response.json() };
   }
   const base = '/api/lyrics-library/v1/works';
+  const rootPage = await fetch(admin.url + '/', { redirect: 'manual' });
+  assert.equal(rootPage.status, 200);
+  assert.match(await rootPage.text(), /id="login-form"/);
   const adminPage = await fetch(admin.url + '/library');
   assert.equal(adminPage.status, 200);
+  assert.equal(adminPage.headers.get('cache-control'), 'no-store');
   assert.match(await adminPage.text(), /id="nav-settings"/);
-  assert.equal((await fetch(admin.url + '/library.js')).status, 200);
+  const script = await fetch(admin.url + '/library.js');
+  assert.equal(script.status, 200);
+  assert.match(script.headers.get('cache-control'), /max-age=300/);
+  const etag = script.headers.get('etag');
+  assert.ok(etag);
+  assert.equal((await fetch(admin.url + '/library.js', { headers: { 'If-None-Match': etag } })).status, 304);
   assert.equal((await fetch(admin.url + '/admin')).status, 404);
   const logo = await fetch(admin.url + '/logo.png');
   assert.equal(logo.status, 200);
   assert.match(logo.headers.get('content-type'), /^image\/png/);
+  assert.match(logo.headers.get('cache-control'), /max-age=300/);
   assert.equal((await fetch(admin.url + '/api/works')).status, 401);
   assert.deepEqual((await get(base)).body, { version: 1, works: [] });
   assert.equal((await get(base + '/BAD/files')).body.error, 'work_not_found');

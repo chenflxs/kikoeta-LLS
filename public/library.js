@@ -441,7 +441,12 @@ zipForm.addEventListener('submit', async (event) => {
 
 document.getElementById('refresh').addEventListener('click', () => refresh().catch((error) => notice(`刷新失败：${error.message}`)));
 
+const initialWorks = refresh().then(() => null, (error) => error);
 ensureSession().then((session) => {
-  if (session) return Promise.all([refresh(), restoreZipProgress()]);
+  if (!session) return;
+  return Promise.all([
+    initialWorks.then((error) => { if (error) notice(`读取作品列表失败：${error.message}`); }),
+    restoreZipProgress(),
+  ]);
 });
 })();

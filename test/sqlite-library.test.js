@@ -30,4 +30,10 @@ test('100,001 works remain indexed and admin pages stay bounded', async (t) => {
   assert.deepEqual((await library.workPage({ query: 'missing-track-name' })).works, []);
   assert.equal((await library.files('RJ050000'))[0].relativePath, 'song.lrc');
   assert.equal((await library.works()).length, 100001);
+  const broadcastFirst = await library.broadcastPage();
+  assert.equal(broadcastFirst.works.length, 1000);
+  assert.equal(broadcastFirst.nextCursor, 'RJ000999');
+  const broadcastSecond = await library.broadcastPage({ after: broadcastFirst.nextCursor });
+  assert.equal(broadcastSecond.works[0].workId, 'RJ001000');
+  assert.equal((await library.broadcastPage({ after: 'RJ100000' })).nextCursor, null);
 });

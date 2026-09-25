@@ -10,6 +10,19 @@ const { importZip, MAX_UPLOAD_BYTES } = require('./zip-import');
 const API_PREFIX = '/api/lyrics-library/v1/works';
 const PUBLIC_DIR = path.join(__dirname, '..', 'public');
 const SESSION_MS = 12 * 60 * 60 * 1000;
+const STATIC_FILES = {
+  '/': ['login.html', 'text/html; charset=utf-8'],
+  '/library': ['library.html', 'text/html; charset=utf-8'],
+  '/login': ['login.html', 'text/html; charset=utf-8'],
+  '/settings': ['settings.html', 'text/html; charset=utf-8'],
+  '/library.js': ['library.js', 'text/javascript; charset=utf-8'],
+  '/login.js': ['login.js', 'text/javascript; charset=utf-8'],
+  '/settings.js': ['settings.js', 'text/javascript; charset=utf-8'],
+  '/shared.js': ['shared.js', 'text/javascript; charset=utf-8'],
+  '/style.css': ['style.css', 'text/css; charset=utf-8'],
+  '/logo.png': ['logo.png', 'image/png'],
+};
+const STATIC_CSP = "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'";
 
 function json(response, status, data) {
   response.writeHead(status, {
@@ -29,7 +42,14 @@ function createApiHandler(library) {
     try {
       if (request.method !== 'GET') return json(response, 405, { error: 'read_only' });
       const route = pathname(request);
-      if (route === API_PREFIX) return json(response, 200, { version: 1, works: await library.works() });
+      if (route === API_PREFIX) {
+        const params = new URL(request.url, 'http://localhost').searchParams;
+        if (!params.has('limit')) return json(response, 200, { version: 1, works: await library.works() });
+        const limit = Number(params.get('limit'));
+        const after = params.get('after') || '';
+        if (!Number.isInteger(limit) || limit < 1 || limit > 1000 || (after && !workId(after))) return json(response, 400, { error: 'invalid_query' });
+        return json(response, 200, await library.broadcastPage({ after: after.toUpperCase(), limit }));
+      }
       const match = /^\/api\/lyrics-library\/v1\/works\/([^/]+)\/(files|lyrics)$/.exec(route);
       if (!match) return json(response, 404, { error: 'not_found' });
       let id;
@@ -116,7 +136,18 @@ function createAdminHandler(library, options = {}) {
   const sessions = new Map();
   const attempts = new Map();
   const importJobs = new Map();
+  const assetCache = new Map();
   const cookie = `lls_session=; Path=/api; HttpOnly; SameSite=Strict${secure ? '; Secure' : ''}`;
+
+  function asset(filename) {
+    if (!assetCache.has(filename)) {
+      assetCache.set(filename, fs.readFile(path.join(PUBLIC_DIR, filename)).then((content) => ({
+        content,
+        etag: `"${crypto.createHash('sha256').update(content).digest('hex')}"`,
+      })).catch((error) => { assetCache.delete(filename); throw error; }));
+    }
+    return assetCache.get(filename);
+  }
 
   function sessionFor(request) {
     const value = /(?:^|;\s*)lls_session=([a-f0-9]{64})(?:;|$)/.exec(request.headers.cookie || '')?.[1];
@@ -136,28 +167,26 @@ function createAdminHandler(library, options = {}) {
   return async (request, response) => {
     try {
       const route = pathname(request);
-      if (request.method === 'GET' && route === '/') {
-        response.writeHead(302, { Location: '/login', 'Cache-Control': 'no-store' });
-        return response.end();
-      }
-      const staticFiles = {
-        '/library': ['library.html', 'text/html; charset=utf-8'],
-        '/login': ['login.html', 'text/html; charset=utf-8'],
-        '/settings': ['settings.html', 'text/html; charset=utf-8'],
-        '/library.js': ['library.js', 'text/javascript; charset=utf-8'],
-        '/login.js': ['login.js', 'text/javascript; charset=utf-8'],
-        '/settings.js': ['settings.js', 'text/javascript; charset=utf-8'],
-        '/shared.js': ['shared.js', 'text/javascript; charset=utf-8'],
-        '/style.css': ['style.css', 'text/css; charset=utf-8'],
-        '/logo.png': ['logo.png', 'image/png'],
-      };
-      if (request.method === 'GET' && staticFiles[route]) {
-        const [filename, type] = staticFiles[route];
-        const content = await fs.readFile(path.join(PUBLIC_DIR, filename));
-        response.writeHead(200, {
-          'Content-Type': type, 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff',
-          'Content-Security-Policy': "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'",
-        });
+      if (request.method === 'GET' && STATIC_FILES[route]) {
+        const [filename, type] = STATIC_FILES[route];
+        const page = type.startsWith('text/html');
+        const { content, etag } = page
+          ? { content: await fs.readFile(path.join(PUBLIC_DIR, filename)) }
+          : await asset(filename);
+        const headers = {
+          'Content-Type': type,
+          'Cache-Control': page ? 'no-store' : 'private, max-age=300, must-revalidate',
+          'X-Content-Type-Options': 'nosniff',
+          'Content-Security-Policy': STATIC_CSP,
+        };
+        if (etag) {
+          headers.ETag = etag;
+          if (request.headers['if-none-match'] === etag) {
+            response.writeHead(304, headers);
+            return response.end();
+          }
+        }
+        response.writeHead(200, headers);
         return response.end(content);
       }
       if (!route.startsWith('/api/')) return json(response, 404, { error: 'not_found' });

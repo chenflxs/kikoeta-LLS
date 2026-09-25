@@ -90,6 +90,12 @@ class Library {
   async works() {
     return this.db.prepare('SELECT work_id, file_count, ai_count FROM works WHERE file_count > 0 ORDER BY work_id').all().map(workInfo);
   }
+  async broadcastPage({ after = '', limit = 1000 } = {}) {
+    if (typeof after !== 'string' || (after && !workId(after)) || !Number.isInteger(limit) || limit < 1 || limit > 1000) throw new Error('invalid_query');
+    const rows = this.db.prepare('SELECT work_id, file_count, ai_count FROM works WHERE file_count > 0 AND work_id > ? ORDER BY work_id LIMIT ?').all(after, limit + 1);
+    const works = rows.slice(0, limit).map(workInfo);
+    return { version: 1, works, nextCursor: rows.length > limit ? works.at(-1).workId : null };
+  }
   async stats() {
     const row = this.db.prepare('SELECT COUNT(*) AS work_count, COALESCE(SUM(file_count), 0) AS file_count FROM works WHERE file_count > 0').get();
     return { workCount: row.work_count, fileCount: row.file_count };

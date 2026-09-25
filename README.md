@@ -4,6 +4,14 @@
 
 Kikoeta 的独立远程歌词库。把歌词集中存放在电脑或服务器上，通过网页管理，再由 Kikoeta 连接并导入；也可以接收 Kikoeta Transl 生成的歌词。
 
+## 界面预览
+
+<p align="center">
+  <img src="docs/image/主页预览.jpeg" alt="Kikoeta-LLS 歌词库管理页：左侧导入歌词，右侧搜索和查看作品" width="960">
+</p>
+
+管理页可导入歌词文件或 ZIP 压缩包，并搜索、查看已有作品。
+
 ## 功能
 
 - **网页管理**：按作品号前缀或文件路径搜索，查看歌词文件、修改 AI 标记、删除文件。
@@ -33,6 +41,8 @@ Kikoeta 的独立远程歌词库。把歌词集中存放在电脑或服务器上
 源码方式运行期间需保持命令窗口开启，按 `Ctrl+C` 停止服务。
 
 ### Linux / Docker
+
+Docker Hub 镜像：[chenflxs/kikoeta-lls](https://hub.docker.com/r/chenflxs/kikoeta-lls)。
 
 下载源码，在项目目录执行：
 

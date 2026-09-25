@@ -3,10 +3,6 @@ name: Publish Docker image
 on:
   workflow_dispatch:
     inputs:
-      image:
-        description: 'Docker Hub image (namespace/repository, e.g. yourname/kikoeta-lls)'
-        required: true
-        type: string
       tag:
         description: 'Image tag (existing tags will be overwritten)'
         required: true
@@ -17,7 +13,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: docker-publish-${{ inputs.image }}-${{ inputs.tag }}
+  group: docker-publish-${{ inputs.tag }}
   cancel-in-progress: false
 
 jobs:
@@ -25,16 +21,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - name: Validate image and tag
+      - name: Validate tag
         shell: bash
         env:
-          IMAGE: ${{ inputs.image }}
           TAG: ${{ inputs.tag }}
         run: |
-          if [[ ! "$IMAGE" =~ ^[a-z0-9]+([._-][a-z0-9]+)*/[a-z0-9]+([._-][a-z0-9]+)*$ ]]; then
-            echo '::error::Image must be a lowercase Docker Hub namespace/repository.'
-            exit 1
-          fi
           if [[ ! "$TAG" =~ ^[a-zA-Z0-9_][a-zA-Z0-9_.-]{0,127}$ ]]; then
             echo '::error::Invalid Docker image tag (maximum 128 characters).'
             exit 1
@@ -64,6 +55,6 @@ jobs:
           file: ./Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
-          tags: docker.io/${{ inputs.image }}:${{ inputs.tag }}
+          tags: docker.io/chenflxs/kikoeta-lls:${{ inputs.tag }}
           cache-from: type=gha
           cache-to: type=gha,mode=max

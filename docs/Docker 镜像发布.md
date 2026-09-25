@@ -1,10 +1,10 @@
 # 手动发布 Docker 镜像
 
-工作流 `.github/workflows/docker-publish.yml` 仅在手动运行时构建并上传镜像，提交代码或创建 Release 不会自动发布。它复用根目录的 Dockerfile，同时发布 `linux/amd64` 和 `linux/arm64` 镜像。
+工作流 `.github/workflows/docker-publish.yml` 仅在手动运行时构建并上传镜像到 [chenflxs/kikoeta-lls](https://hub.docker.com/r/chenflxs/kikoeta-lls)，提交代码或创建 Release 不会自动发布。它复用根目录的 Dockerfile，同时发布 `linux/amd64` 和 `linux/arm64` 镜像。
 
 ## 首次配置
 
-1. 在 Docker Hub 创建镜像仓库，例如 `yourname/kikoeta-lls`。
+1. 在 Docker Hub 创建 `chenflxs/kikoeta-lls` 镜像仓库。
 2. 创建对目标仓库有写入权限的 Docker Hub Access Token。
 3. 在 GitHub 仓库的 **Settings → Secrets and variables → Actions → New repository secret** 中添加：
 
@@ -20,14 +20,13 @@
 将工作流提交到 GitHub 默认分支后，打开 **Actions → Publish Docker image → Run workflow**：
 
 - 选择要构建的分支。
-- `image`：填写完整的 `命名空间/仓库名`，例如 `yourname/kikoeta-lls`，使用小写，不包含 `docker.io/`。
 - `tag`：默认 `latest`，也可以填写 `0.1.0` 等版本标签。
 
-点击 **Run workflow**。成功后可拉取 `yourname/kikoeta-lls:latest`（替换为实际名称和标签）。每次只发布填写的一个标签；发布版本标签不会同时更新 `latest`。重复使用同一标签会覆盖该标签指向的镜像。
+点击 **Run workflow**。成功后可拉取 `chenflxs/kikoeta-lls:latest`（或实际填写的标签）。每次只发布填写的一个标签；发布版本标签不会同时更新 `latest`。重复使用同一标签会覆盖该标签指向的镜像。
 
 ## 使用已发布镜像
 
-将 `compose.yaml` 中的 `build: .` 替换为 `image: yourname/kikoeta-lls:latest`，保留其他配置，然后执行：
+将 `compose.yaml` 中的 `build: .` 替换为 `image: chenflxs/kikoeta-lls:latest`，保留其他配置，然后执行：
 
 ```sh
 docker compose pull
