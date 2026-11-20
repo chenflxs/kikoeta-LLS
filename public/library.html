@@ -8,6 +8,7 @@
   <link rel="icon" href="/logo.png">
   <link rel="stylesheet" href="/style.css">
   <script defer src="/shared.js"></script>
+  <script defer src="/updates.js"></script>
   <script defer src="/library.js"></script>
 </head>
 <body data-view="library">
@@ -23,6 +24,7 @@
       <header class="topbar">
         <div class="topbar-title"><span class="eyebrow">KIKOETA / LYRICS LIBRARY</span><h1>歌词库</h1></div>
         <div class="header-actions">
+          <a id="update-available" class="quiet-button" target="_blank" rel="noopener noreferrer" hidden></a>
           <span class="service-pill"><span class="online-dot"></span>远程服务</span>
           <button id="theme-toggle" class="icon-button" type="button" aria-label="切换主题" title="切换主题">☾</button>
           <button id="logout" class="quiet-button" type="button">退出登录</button>

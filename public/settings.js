@@ -163,6 +163,7 @@ for (const [id, action] of [
 
 ensureSession().then((session) => {
   if (!session) return;
+  window.LLSUpdates.initialize(session.version);
   document.getElementById('current-user').textContent = session.user;
   refreshTranslAuth().catch((error) => notice(`读取 Transl 授权失败：${error.message}`));
 });

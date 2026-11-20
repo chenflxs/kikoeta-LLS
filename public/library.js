@@ -208,7 +208,11 @@ searchInput.addEventListener('input', () => {
 
 function maybeLoadMore() {
   if (document.body.dataset.view !== 'library' || listLoading || loadingMore || loadFailed || !nextCursor) return;
-  if (worksElement.scrollHeight - worksElement.scrollTop - worksElement.clientHeight > 100) return;
+  // Short and narrow windows scroll the page instead of the works list.
+  const bounds = worksElement.getBoundingClientRect();
+  const visibleHeight = Math.min(worksElement.clientHeight, window.innerHeight - bounds.top);
+  if (visibleHeight <= 0 || bounds.bottom <= 0) return;
+  if (worksElement.scrollHeight - worksElement.scrollTop - visibleHeight > 100) return;
   loadMore();
 }
 
@@ -238,7 +242,9 @@ async function loadMore() {
   }
 }
 
-worksElement.addEventListener('scroll', () => { loadFailed = false; maybeLoadMore(); });
+function onListScroll() { loadFailed = false; maybeLoadMore(); }
+worksElement.addEventListener('scroll', onListScroll);
+window.addEventListener('scroll', onListScroll);
 window.addEventListener('resize', () => requestAnimationFrame(maybeLoadMore));
 
 let zipDefaults = { conflict: 'skip', isAi: false };
@@ -444,6 +450,7 @@ document.getElementById('refresh').addEventListener('click', () => refresh().cat
 const initialWorks = refresh().then(() => null, (error) => error);
 ensureSession().then((session) => {
   if (!session) return;
+  window.LLSUpdates.initialize(session.version);
   return Promise.all([
     initialWorks.then((error) => { if (error) notice(`读取作品列表失败：${error.message}`); }),
     restoreZipProgress(),

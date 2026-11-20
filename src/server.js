@@ -6,6 +6,7 @@ const { Library, workId, relativePath, MAX_FILE_BYTES } = require('./library');
 const { Credentials, equalStrings } = require('./credentials');
 const { TranslAuth } = require('./transl-auth');
 const { importZip, MAX_UPLOAD_BYTES } = require('./zip-import');
+const { createUpdateChecker, currentVersion } = require('./updates');
 
 const API_PREFIX = '/api/lyrics-library/v1/works';
 const PUBLIC_DIR = path.join(__dirname, '..', 'public');
@@ -19,6 +20,7 @@ const STATIC_FILES = {
   '/login.js': ['login.js', 'text/javascript; charset=utf-8'],
   '/settings.js': ['settings.js', 'text/javascript; charset=utf-8'],
   '/shared.js': ['shared.js', 'text/javascript; charset=utf-8'],
+  '/updates.js': ['updates.js', 'text/javascript; charset=utf-8'],
   '/style.css': ['style.css', 'text/css; charset=utf-8'],
   '/logo.png': ['logo.png', 'image/png'],
 };
@@ -131,6 +133,7 @@ function sameOrigin(request) {
 function createAdminHandler(library, options = {}) {
   const credentials = options.credentials;
   const translAuth = options.translAuth;
+  const checkUpdates = options.updateChecker || createUpdateChecker();
   if (!credentials) throw new Error('Administrator credentials are required');
   const secure = options.secure === true;
   const sessions = new Map();
@@ -212,7 +215,7 @@ function createAdminHandler(library, options = {}) {
 
       const authenticated = sessionFor(request);
       if (!authenticated) return json(response, 401, { error: 'unauthorized' });
-      if (route === '/api/session' && request.method === 'GET') return json(response, 200, { user: credentials.user, csrf: authenticated.session.csrf, mustChangePassword: credentials.mustChangePassword });
+      if (route === '/api/session' && request.method === 'GET') return json(response, 200, { user: credentials.user, csrf: authenticated.session.csrf, mustChangePassword: credentials.mustChangePassword, version: currentVersion });
       if (request.method !== 'GET' && request.headers['x-lls-csrf'] !== authenticated.session.csrf) return json(response, 403, { error: 'forbidden' });
       if (route === '/api/logout' && request.method === 'POST') {
         sessions.delete(authenticated.value);
@@ -226,6 +229,10 @@ function createAdminHandler(library, options = {}) {
         return json(response, 200, { ok: true, csrf, mustChangePassword: false });
       }
       if (credentials.mustChangePassword) return json(response, 403, { error: 'password_change_required' });
+      if (route === '/api/updates' && request.method === 'GET') {
+        const force = new URL(request.url, 'http://localhost').searchParams.get('force') === '1';
+        return json(response, 200, await checkUpdates({ force }));
+      }
       if (route === '/api/import/jobs' && request.method === 'POST') {
         for (const [id, job] of importJobs) {
           if (job.updatedAt < Date.now() - 24 * 60 * 60 * 1000) importJobs.delete(id);

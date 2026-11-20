@@ -57,6 +57,8 @@ a:hover { text-decoration: underline; }
 .rail-current { color: var(--accent); background: var(--accent-soft); }
 .rail-icon { font-size: 23px; line-height: 1.05; }
 .rail-source { margin-top: auto; color: var(--muted); font-size: 11px; }
+/* Keep page scrolling anchored to works, not panels moved by appended works. */
+body[data-view="library"] .rail, body[data-view="library"] .upload-surface { overflow-anchor: none; }
 .main-column { min-width: 0; flex: 1; }
 .topbar { min-height: 94px; padding: 20px clamp(24px, 3vw, 48px); display: flex; align-items: center; justify-content: space-between; gap: 24px; border-bottom: 1px solid var(--border); transition: background-color .2s ease, border-color .2s ease; }
 .topbar h1 { font-size: 23px; line-height: 1.15; letter-spacing: .2px; margin: 4px 0 0; font-weight: 800; }
@@ -100,6 +102,7 @@ body[data-view="login"] .content, body[data-view="password"] .content { width: 1
 .settings-card .section-head { margin-bottom: 18px; }
 .setting-current { margin: 0 0 18px; color: var(--muted); font-size: 12px; }
 .setting-current strong { color: var(--text); }
+.update-status { margin-top: 16px; }
 .setting-note { margin: 14px 0 0; color: var(--dim); font-size: 11px; }
 .setting-subform { margin-top: 17px; padding-top: 17px; border-top: 1px solid var(--border); }
 .setting-actions { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -219,6 +222,7 @@ input[type="checkbox"] { width: 16px; height: 16px; margin: 0; accent-color: var
   .overview { padding: 20px 24px; }
   .library-layout { flex: 1; min-height: 0; align-items: stretch; margin-top: 16px; }
   .upload-surface, .works-surface { min-height: 0; }
+  .upload-surface { overflow-y: auto; }
   .works-surface { display: flex; flex-direction: column; }
   .works-list { flex: 1; }
   .settings-layout { margin-top: 16px; }
