@@ -31,9 +31,8 @@ if errorlevel 1 exit /b %errorlevel%
 
 :dependencies_ready
 echo Starting Kikoeta-LLS. Press Ctrl+C to stop it.
-echo Admin UI: http://localhost:2376/admin
-echo Kikoeta remote library URL: http://localhost:2377
-echo Kikoeta Transl upload URL: http://localhost:2378
+echo Default admin UI: http://localhost:2377/login
+echo Default Kikoeta remote library and Transl upload URL: http://localhost:2377
 echo First login: admin / kikoeta-lrc. You must set a new password.
 node src\server.js
 exit /b %errorlevel%

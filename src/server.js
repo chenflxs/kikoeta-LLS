@@ -1,4 +1,6 @@
 const http = require('node:http');
+const net = require('node:net');
+const { once } = require('node:events');
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const crypto = require('node:crypto');
@@ -196,7 +198,7 @@ function createAdminHandler(library, options = {}) {
       if (!sameOrigin(request)) return json(response, 403, { error: 'forbidden' });
 
       if (route === '/api/login' && request.method === 'POST') {
-        const ip = request.socket.remoteAddress || 'unknown';
+        const ip = options.clientAddress?.(request.socket) || request.socket.remoteAddress || 'unknown';
         const state = attempts.get(ip);
         if (state && state.until > Date.now() && state.count >= 5) return json(response, 429, { error: 'too_many_attempts' });
         attempts.set(ip, { count: state && state.until > Date.now() ? state.count + 1 : 1, until: Date.now() + 15 * 60 * 1000 });
@@ -364,7 +366,37 @@ function createAdminHandler(library, options = {}) {
   };
 }
 
+function socketEndpoint(address, port) {
+  return `[${address}]:${port}`;
+}
+
+function createForwarder(target, forwardedAddresses) {
+  return net.createServer({ allowHalfOpen: true }, (client) => {
+    let endpoint;
+    const upstream = net.createConnection(target, () => {
+      // Register the original address before the HTTP server can read a request.
+      endpoint = socketEndpoint(upstream.localAddress, upstream.localPort);
+      forwardedAddresses.set(endpoint, client.remoteAddress);
+      client.pipe(upstream).pipe(client);
+    });
+    client.on('error', () => upstream.destroy());
+    upstream.on('error', () => client.destroy());
+    client.once('close', () => upstream.destroy());
+    upstream.once('close', () => {
+      if (endpoint) forwardedAddresses.delete(endpoint);
+      if (upstream.readableEnded) client.destroySoon();
+      else client.destroy();
+    });
+  });
+}
+
 async function start() {
+  const host = process.env.HOST || '0.0.0.0';
+  const adminPort = Number(process.env.ADMIN_PORT || 2376);
+  const apiPort = Number(process.env.API_PORT || 2377);
+  const translPort = Number(process.env.TRANSL_PORT || 2378);
+  if (![adminPort, apiPort, translPort].every((port) => Number.isInteger(port) && port >= 1 && port <= 65535) ||
+      new Set([adminPort, apiPort, translPort]).size !== 3) throw new Error('Invalid ports');
   const dataDir = process.env.DATA_DIR || path.join(__dirname, '..', 'data');
   const library = new Library(dataDir);
   await library.init();
@@ -372,24 +404,34 @@ async function start() {
   await credentials.init();
   const translAuth = new TranslAuth(dataDir);
   await translAuth.init();
-  const host = process.env.HOST || '0.0.0.0';
-  const adminPort = Number(process.env.ADMIN_PORT || 2376);
-  const apiPort = Number(process.env.API_PORT || 2377);
-  const translPort = Number(process.env.TRANSL_PORT || 2378);
-  if (![adminPort, apiPort, translPort].every((port) => Number.isInteger(port) && port >= 1 && port <= 65535) ||
-      new Set([adminPort, apiPort, translPort]).size !== 3) throw new Error('Invalid ports');
-  const servers = [
-    http.createServer(createAdminHandler(library, { credentials, translAuth, secure: process.env.COOKIE_SECURE === 'true' })),
-    http.createServer(createApiHandler(library)),
-    http.createServer(createTranslHandler(library, translAuth)),
-  ];
+  const forwardedAddresses = new Map();
+  const admin = createAdminHandler(library, {
+    credentials, translAuth, secure: process.env.COOKIE_SECURE === 'true',
+    clientAddress: (socket) => forwardedAddresses.get(socketEndpoint(socket.remoteAddress, socket.remotePort)),
+  });
+  const api = createApiHandler(library);
+  const transl = createTranslHandler(library, translAuth);
+  const primary = http.createServer((request, response) => {
+    const route = pathname(request);
+    if (route === API_PREFIX || route.startsWith(`${API_PREFIX}/`)) return api(request, response);
+    if (route === '/api/v1' || route.startsWith('/api/v1/')) return transl(request, response);
+    return admin(request, response);
+  });
+  const forwarders = [];
+  const closeServers = () => Promise.all([...forwarders, primary].map((server) => new Promise((resolve) => server.close(resolve))));
   try {
-    for (const [index, port] of [adminPort, apiPort, translPort].entries()) {
-      await new Promise((resolve, reject) => servers[index].once('error', reject).listen(port, host, resolve));
-      console.log(`${['Admin', 'Lyrics API', 'Transl upload'][index]} listening at http://${host}:${port}`);
+    await once(primary.listen(apiPort, host), 'listening');
+    const { address } = primary.address();
+    const targetHost = address === '0.0.0.0' ? '127.0.0.1' : address === '::' ? '::1' : address;
+    console.log(`Kikoeta-LLS listening at port ${apiPort} on ${host}`);
+    for (const port of [adminPort, translPort]) {
+      const forwarder = createForwarder({ host: targetHost, port: apiPort }, forwardedAddresses);
+      await once(forwarder.listen(port, host), 'listening');
+      forwarders.push(forwarder);
+      console.log(`Compatibility port ${port} on ${host} forwards to ${apiPort}`);
     }
   } catch (error) {
-    for (const server of servers) server.close();
+    await closeServers();
     library.close();
     throw error;
   }
@@ -397,7 +439,7 @@ async function start() {
   const stop = () => {
     if (stopping) return;
     stopping = true;
-    Promise.all(servers.map((server) => new Promise((resolve) => server.close(resolve))))
+    closeServers()
       .then(() => library.close())
       .catch((error) => { console.error('Shutdown failed:', error); process.exitCode = 1; });
   };
