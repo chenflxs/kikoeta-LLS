@@ -2,9 +2,7 @@ FROM node:24-alpine
 
 ENV NODE_ENV=production \
     HOST=0.0.0.0 \
-    ADMIN_PORT=2376 \
     API_PORT=2377 \
-    TRANSL_PORT=2378 \
     DATA_DIR=/data
 
 WORKDIR /app
@@ -18,5 +16,5 @@ RUN mkdir -p /data && chown -R node:node /data /app
 USER node
 
 VOLUME /data
-EXPOSE 2376 2377 2378
+EXPOSE 2377
 CMD ["node", "src/server.js"]

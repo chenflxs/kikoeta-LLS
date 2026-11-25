@@ -157,6 +157,11 @@ input[type="checkbox"] { width: 16px; height: 16px; margin: 0; accent-color: var
 .primary-button { min-height: 44px; padding: 9px 16px; color: white; background: var(--accent); border: 1px solid var(--accent); border-radius: 12px; font-weight: 700; }
 .primary-button:hover { background: var(--accent-hover); border-color: var(--accent-hover); box-shadow: 0 5px 14px color-mix(in srgb, var(--accent) 22%, transparent); transform: translateY(-1px); }
 .upload-surface .primary-button { width: 100%; margin-top: 4px; }
+/* Keep the primary action inside a short import card; the browser scrolls its fields. */
+@media (min-width: 961px) {
+  .upload-surface { max-height: calc(100dvh - 284px); overflow-y: auto; overscroll-behavior: contain; }
+  .upload-surface #upload-form, .upload-surface #zip-form { padding-bottom: 1px; }
+}
 .import-progress { display: grid; gap: 8px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 11px; background: var(--accent-soft); color: var(--text); font-size: 12px; overflow-wrap: anywhere; }
 .import-progress strong { display: flex; align-items: center; gap: 8px; font-size: 12px; }
 .import-progress[data-state="uploading"] strong::before, .import-progress[data-state="processing"] strong::before { content: ''; width: 12px; height: 12px; flex: 0 0 12px; border: 2px solid var(--surface3); border-top-color: var(--accent); border-radius: 50%; animation: import-spin .75s linear infinite; }
@@ -211,6 +216,17 @@ input[type="checkbox"] { width: 16px; height: 16px; margin: 0; accent-color: var
 .empty-icon { display: block; margin-bottom: 7px; color: var(--dim); font-size: 32px; }
 .empty-state strong { display: block; color: var(--text); font-size: 13px; }
 .empty-state p { margin: 3px 0 0; font-size: 11px; }
+
+/* Quiet scrollbars: no arrow buttons, transparent track, soft rounded thumb. */
+.upload-surface::-webkit-scrollbar, .works-list::-webkit-scrollbar { width: 12px; height: 12px; }
+.upload-surface::-webkit-scrollbar-track, .works-list::-webkit-scrollbar-track { background: transparent; }
+.upload-surface::-webkit-scrollbar-button, .works-list::-webkit-scrollbar-button { display: none; }
+.upload-surface::-webkit-scrollbar-thumb, .works-list::-webkit-scrollbar-thumb { min-height: 40px; border: 3px solid transparent; border-radius: 999px; background: color-mix(in srgb, var(--dim) 40%, transparent) content-box; }
+.upload-surface:hover::-webkit-scrollbar-thumb, .works-list:hover::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--dim) 62%, transparent) content-box; }
+.upload-surface::-webkit-scrollbar-thumb:hover, .works-list::-webkit-scrollbar-thumb:hover { background: var(--dim) content-box; }
+@supports not selector(::-webkit-scrollbar) {
+  .upload-surface, .works-list { scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--dim) 38%, transparent) transparent; }
+}
 
 @media (min-width: 961px) and (min-height: 700px) {
   body[data-view="library"] { height: 100dvh; overflow: hidden; }
